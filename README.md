@@ -1,4 +1,4 @@
-# MKE-GCN
+# ACFL
 This repo is the official implementation for ACFL.
 
 
@@ -55,7 +55,7 @@ Put downloaded data into the following directory structure:
 - Change the config file depending on what you want.
 
 ```
-# Example: training MKE-GCN on NTU RGB+D 120 cross subject with GPU 0 1 2 3
+# Example: training CTR-GCN via ACFL on NTU RGB+D 120 cross subject with GPU 0 1 2 3
 python train_net.py --config config/nturgbd120-cross-subject/acfl_ctr_gcn.yaml --work-dir work_dir/ntu120/csub/acfl_ctr_gcn --device 0 1 2 3
 ```
 
