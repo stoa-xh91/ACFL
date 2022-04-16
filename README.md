@@ -53,6 +53,33 @@ Put downloaded data into the following directory structure:
  python seq_transformation.py
 ```
 
+## Download pretrained models from our model zoo
+```
+   ${ACFL_ROOT}
+    `-- source_models
+       | -- CTR-GCN
+       |    | -- ctrgcn_joint_ntu120_xsub.pt
+       |    | -- ctrgcn_bone_ntu120_xsub.pt
+       |    | -- ctrgcn_joint_bone_ntu120_xsub.pt
+       |    | -- ...
+       | -- Shift-GCN
+       |    | -- shiftgcn_joint_ntu120_xsub.pt
+       |    | -- shiftgcn_bone_ntu120_xsub.pt
+       |    | -- shiftgcn_joint_bone_ntu120_xsub.pt
+       |    | -- ...
+     -- acfl_models
+       | -- CTR-GCN
+       |    | -- ctrgcn_joint_ntu120_xsub.pt
+       |    | -- ctrgcn_bone_ntu120_xsub.pt
+       |    | -- ctrgcn_joint_bone_ntu120_xsub.pt
+       |    | -- ...
+       | -- Shift-GCN
+       |    | -- shiftgcn_joint_ntu120_xsub.pt
+       |    | -- shiftgcn_bone_ntu120_xsub.pt
+       |    | -- shiftgcn_joint_bone_ntu120_xsub.pt
+       |    | -- ...
+```
+
 ## Training & Testing
 
 ### Training
