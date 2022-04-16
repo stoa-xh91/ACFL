@@ -53,7 +53,7 @@ Put downloaded data into the following directory structure:
  python seq_transformation.py
 ```
 
-## Download pretrained models from our model zoo
+## Download pretrained models from our model zoo ([Baidu](https://pan.baidu.com/s/1M4z9daHRp9gQ7am6o3-Vqg)(ns51))
 ```
    ${ACFL_ROOT}
     `-- source_models
