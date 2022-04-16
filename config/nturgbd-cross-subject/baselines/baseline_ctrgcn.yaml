@@ -1,9 +1,9 @@
-work_dir: ./work_dir/ntu120/xset/shiftgcn_joint_baseline
+work_dir: work_dir/ntu60/xsub/baseline_joint_ctrgcn
 
 # feeder
-feeder: feeders.feeder_ntu.Feeder
+feeder: feeders.customized_feeder_ntu.Feeder
 train_feeder_args:
-  data_path: data/ntu120/NTU120_CSet.npz
+  data_path: data/ntu/NTU60_CS.npz
   split: train
   debug: False
   random_choose: False
@@ -14,23 +14,26 @@ train_feeder_args:
   random_rot: True
   p_interval: [0.5, 1]
   vel: False
-  bone: False
+  bone: True
 
 test_feeder_args:
-  data_path: data/ntu120/NTU120_CSet.npz
+  data_path: data/ntu/NTU60_CS.npz
   split: test
   window_size: 64
   p_interval: [0.95]
   vel: False
-  bone: False
+  bone: True
   debug: False
 
 # model
-model: model.shift_gcn.Model
+target_form: joint # options: joint bone hybrid
+model: model.ctrgcn.Model # options: Model/NaiveMultiModel
+
 model_args:
-  num_class: 120
+  num_class: 60
   num_point: 25
   num_person: 2
+  base_channel: 64
   graph: graph.ntu_rgb_d.Graph
   graph_args:
     labeling_mode: 'spatial'
@@ -47,3 +50,4 @@ batch_size: 128
 test_batch_size: 128
 num_epoch: 65
 nesterov: True
+

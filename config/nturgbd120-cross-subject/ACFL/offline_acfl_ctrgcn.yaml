@@ -1,9 +1,9 @@
-work_dir: ./work_dir/ntu120/xset/ctrgcn_bone
+work_dir: work_dir/ntu120/xsub/offline_acfl_joint_ctrgcn
 
 # feeder
-feeder: feeders.feeder_ntu.Feeder
+feeder: feeders.customized_feeder_ntu.Feeder
 train_feeder_args:
-  data_path: data/ntu120/NTU120_CSet.npz
+  data_path: data/ntu120/NTU120_CSub.npz
   split: train
   debug: False
   random_choose: False
@@ -17,7 +17,7 @@ train_feeder_args:
   bone: True
 
 test_feeder_args:
-  data_path: data/ntu120/NTU120_CSet.npz
+  data_path: data/ntu120/NTU120_CSub.npz
   split: test
   window_size: 64
   p_interval: [0.95]
@@ -26,11 +26,16 @@ test_feeder_args:
   debug: False
 
 # model
-model: model.ctrgcn.Model
+target_form: joint # options: joint bone hybrid
+source_sform_model: model.ctrgcn.Model
+source_mform_model: model.ctrgcn.NaiveMultiModel
+target_model: model.ctrgcn.Model
+cfml_loss: model.loss.CFMLloss
 model_args:
   num_class: 120
   num_point: 25
   num_person: 2
+  base_channel: 64
   graph: graph.ntu_rgb_d.Graph
   graph_args:
     labeling_mode: 'spatial'
@@ -47,3 +52,9 @@ batch_size: 128
 test_batch_size: 128
 num_epoch: 65
 nesterov: True
+
+source_model:
+  joint_model_weights: './source_models/ctrgcn_joint_ntu120_xsub.pt'
+  bone_model_weights: './source_models/ctrgcn_bone_ntu120_xsub.pt'
+  hybrid_model_weights: './source_models/ctrgcn_joint_bone_ntu120_xsub.pt'
+  
