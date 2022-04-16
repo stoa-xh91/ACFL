@@ -14,11 +14,11 @@ We empirically demonstrate the effectiveness of our method through the superior 
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |Shift-GCN        |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN w ACFL |   Joint    |         **85.1**    |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN        |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN w ACFL |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN        |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN w ACFL |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN w ACFL |   Joint    |         **85.1**    |      **85.9**        |         **90.0**    |          **94.1**    |   **43.2**|
+|Shift-GCN        |   Bone     |         83.7        |         84.2         |         89.6        |          92.4        |   40.5    |
+|Shift-GCN w ACFL |   Bone     |         **85.5**    |     **86.7**         |      **90.3**       |      **93.9**        |   **41.6**|
+|Shift-GCN        |Joint & Bone|         85.4        |         86.2         |         89.5        |          93.4        |   41.2    |
+|Shift-GCN w ACFL |Joint & Bone|         **86.9**    |      **87.8**        |        **90.5**     |       **94.5**       | **42.6**  |
 
 ### Adopting MS-G3D as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
