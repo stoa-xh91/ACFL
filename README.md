@@ -8,6 +8,34 @@ We empirically demonstrate the effectiveness of our method through the superior 
 
 ![Illustrating the paradigm of the proposed ACFL](/figures/ACFL.png)
 
+## Main Results
+
+### Results on NTU RGB-D 120, NTU RGB-D 60, UAV
+| Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
+|-----------------|------------|---------------------|----------------------|---------------------|----------------------|-----------|
+|Shift-GCN        |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN w ACFL |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN        |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN w ACFL |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN        |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN w ACFL |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|-----------------|------------|---------|----------------------|---------------------|----------------------|-----------|-----------|
+|MS-G3D           |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|MS-G3D w ACFL    |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|MS-G3D           |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|MS-G3D w ACFL    |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|MS-G3D           |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|MS-G3D w ACFL    |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|-----------------|------------|---------|----------------------|---------------------|----------------------|-----------|-----------|
+|CTR-GCN          |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|CTR-GCN  w ACFL  |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|CTR-GCN          |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|CTR-GCN  w ACFL  |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|CTR-GCN          |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|CTR-GCN  w ACFL  |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+
+
+
 ## Data Preparation
 
 #### NTU RGB+D 60 and 120
@@ -53,7 +81,7 @@ Put downloaded data into the following directory structure:
  python seq_transformation.py
 ```
 
-## Download pretrained models from our model zoo ([Baidu](https://pan.baidu.com/s/1M4z9daHRp9gQ7am6o3-Vqg)(ns51))
+### Download pretrained models from our model zoo ([Baidu](https://pan.baidu.com/s/1M4z9daHRp9gQ7am6o3-Vqg)(ns51))
 ```
    ${ACFL_ROOT}
     `-- source_models
