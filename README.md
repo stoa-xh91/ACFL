@@ -14,29 +14,29 @@ We empirically demonstrate the effectiveness of our method through the superior 
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |CTR-GCN          |   Joint    |         84.9        |         86.5         |         89.6        |          94.5        |   41.7    |
-|CTR-GCN  w**ACFL**  |   Joint    |       **87.3**      |        **88.7**      |      **91.2**       |       **96.4**       | **43.8**  |
+|CTR-GCN  w **ACFL**  |   Joint    |       **87.3**      |        **88.7**      |      **91.2**       |       **96.4**       | **43.8**  |
 |CTR-GCN          |   Bone     |         85.7        |         87.4         |         90.2        |          94.9        |   41.0    |
-|CTR-GCN  w**ACFL**  |   Bone     |       **88.4**      |       **89.5**       |       **91.4**      |        **96.4**      | **43.3**  |
+|CTR-GCN  w **ACFL**  |   Bone     |       **88.4**      |       **89.5**       |       **91.4**      |        **96.4**      | **43.3**  |
 |CTR-GCN          |Joint & Bone|         86.9        |         88.8         |         90.9        |          95.6        |   42.4    |
-|CTR-GCN  w**ACFL**  |Joint & Bone|       **89.3**      |        **90.2**      |      **92.0**       |        **96.6**      |  **44.2** |
+|CTR-GCN  w **ACFL**  |Joint & Bone|       **89.3**      |        **90.2**      |      **92.0**       |        **96.6**      |  **44.2** |
 
 #### Adopting Shift-GCN as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |Shift-GCN        |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN w ACFL |   Joint    |         **85.1**    |      **85.9**        |         **90.0**    |          **94.1**    |   **43.2**|
+|Shift-GCN w **ACFL** |   Joint    |         **85.1**    |      **85.9**        |         **90.0**    |          **94.1**    |   **43.2**|
 |Shift-GCN        |   Bone     |         83.7        |         84.2         |         89.6        |          92.4        |   40.5    |
-|Shift-GCN w ACFL |   Bone     |         **85.5**    |     **86.7**         |      **90.3**       |      **93.9**        |   **41.6**|
+|Shift-GCN w **ACFL** |   Bone     |         **85.5**    |     **86.7**         |      **90.3**       |      **93.9**        |   **41.6**|
 |Shift-GCN        |Joint & Bone|         85.4        |         86.2         |         89.5        |          93.4        |   41.2    |
-|Shift-GCN w ACFL |Joint & Bone|         **86.9**    |      **87.8**        |        **90.5**     |       **94.5**       | **42.6**  |
+|Shift-GCN w **ACFL** |Joint & Bone|         **86.9**    |      **87.8**        |        **90.5**     |       **94.5**       | **42.6**  |
 
 #### Adopting MS-G3D as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |MS-G3D           |   Joint    |         85.4        |         87.2         |         89.7        |          94.7        |   42.2    |
-|MS-G3D w ACFL    |   Joint    |      **87.3**       |      **88.7**        |      **90.3**       |        **94.7**      | **43.3**  |
+|MS-G3D w **ACFL**    |   Joint    |      **87.3**       |      **88.7**        |      **90.3**       |        **94.7**      | **43.3**  |
 |MS-G3D           |   Bone     |         86.7        |         87.6         |         90.5        |          94.5        |   41.7    |
-|MS-G3D w ACFL    |   Bone     |      **88.1**       |      **89.0**        |       **91.0**      |        **95.5**      | **43.3**  |
+|MS-G3D w **ACFL**    |   Bone     |      **88.1**       |      **89.0**        |       **91.0**      |        **95.5**      | **43.3**  |
 
 ## Data Preparation
 
