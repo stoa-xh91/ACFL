@@ -1,9 +1,9 @@
-work_dir: ./work_dir/ntu120/xsub/ama_multimodal
+work_dir: ./work_dir/ntu120/xset/joint_ctrgcn_ensemble_kd
 
 # feeder
 feeder: feeders.multimodal_feeder_ntu.Feeder
 train_feeder_args:
-  data_path: data/ntu120/NTU120_CSub.npz
+  data_path: data/ntu120/NTU120_CSet.npz
   split: train
   debug: False
   random_choose: False
@@ -16,9 +16,8 @@ train_feeder_args:
   vel: False
   bone: True
 
-
 test_feeder_args:
-  data_path: data/ntu120/NTU120_CSub.npz
+  data_path: data/ntu120/NTU120_CSet.npz
   split: test
   window_size: 64
   p_interval: [0.95]
@@ -26,9 +25,10 @@ test_feeder_args:
   bone: True
   debug: False
 
-
 # model
-model: model.ctrgcn.MultiModalGcn
+model: model.ctrgcn.Model
+multi_model: model.ctrgcn.NaiveMultiModel
+student_model: model.ctrgcn.Model
 model_args:
   num_class: 120
   num_point: 25
@@ -50,4 +50,9 @@ test_batch_size: 128
 num_epoch: 65
 nesterov: True
 
-
+teacher_model:
+  joint_model_weights: '/home/wangxuanhan/research/project/CTR-GCN/work_dir/ntu120/xset/ctrgcn_joint/runs-64-27200.pt'
+  bone_model_weights: '/home/wangxuanhan/research/project/CTR-GCN/work_dir/ntu120/xset/ctrgcn_bone/runs-62-26350.pt'
+  multi_model_weights: '/home/wangxuanhan/research/project/CTR-GCN/work_dir/ntu120/xset/ctrgcn_joint_bone_concat/runs-61-25925.pt'
+  logit_label_dir: './ntu120_xset_ensemble_logits.pt'
+  student: joint

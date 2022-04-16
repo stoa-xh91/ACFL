@@ -51,17 +51,14 @@ class Feeder(Dataset):
     def load_data(self):
         # data: N C V T M
         npz_data = np.load(self.data_path)
-
         if self.split == 'train':
             self.data = npz_data['x_train']
             self.label = np.where(npz_data['y_train'] > 0)[1]
             self.sample_name = ['train_' + str(i) for i in range(len(self.data))]
-
         elif self.split == 'test':
             self.data = npz_data['x_test']
             self.label = np.where(npz_data['y_test'] > 0)[1]
             self.sample_name = ['test_' + str(i) for i in range(len(self.data))]
-
         else:
             raise NotImplementedError('data split only supports train/test')
         N, T, _ = self.data.shape
@@ -89,15 +86,12 @@ class Feeder(Dataset):
         data_numpy = tools.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
         if self.random_rot:
             data_numpy = tools.random_rot(data_numpy)
-        if self.bone:
-            from .bone_pairs import ntu_pairs
-            bone_data_numpy = np.zeros_like(data_numpy)
-            for v1, v2 in ntu_pairs:
-                bone_data_numpy[:, :, v1 - 1] = data_numpy[:, :, v1 - 1] - data_numpy[:, :, v2 - 1]
-            data_numpy = np.concatenate([data_numpy, bone_data_numpy], axis=0)
-        if self.vel:
-            data_numpy[:, :-1] = data_numpy[:, 1:] - data_numpy[:, :-1]
-            data_numpy[:, -1] = 0
+        
+        from .bone_pairs import ntu_pairs
+        bone_data_numpy = np.zeros_like(data_numpy)
+        for v1, v2 in ntu_pairs:
+            bone_data_numpy[:, :, v1 - 1] = data_numpy[:, :, v1 - 1] - data_numpy[:, :, v2 - 1]
+        data_numpy = np.concatenate([data_numpy, bone_data_numpy], axis=0)
 
         return data_numpy, label, index
 

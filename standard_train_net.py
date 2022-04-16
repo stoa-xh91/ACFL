@@ -132,9 +132,7 @@ def get_parser():
 
     # model
     parser.add_argument('--model', default=None, help='the model will be used')
-    parser.add_argument('--teacher_model', default=None, help='the model will be used')
-    parser.add_argument('--multi_model', default=None, help='the model will be used')
-    parser.add_argument('--student_model', default=None, help='the model will be used')
+    parser.add_argument('--target_form', default=None, help='the model will be used')
     parser.add_argument(
         '--model-args',
         action=DictAction,
@@ -218,7 +216,7 @@ class Processor():
             else:
                 self.train_writer = self.val_writer = SummaryWriter(os.path.join(arg.model_saved_name, 'test'), 'test')
         self.global_step = 0
-        self.soft_label_dir = self.arg.teacher_model['logit_label_dir']
+        self.target_form = self.arg.target_form
         # pdb.set_trace()
         self.load_model()
 
@@ -232,26 +230,11 @@ class Processor():
         self.best_acc_epoch = 0
 
         self.model = self.model.cuda(self.output_device)
-        self.joint_teacher = self.joint_teacher.cuda(self.output_device)
-        self.bone_teacher = self.bone_teacher.cuda(self.output_device)
-        self.mm_teacher = self.mm_teacher.cuda(self.output_device)
         if type(self.arg.device) is list:
 
             if len(self.arg.device) > 1:
                 self.model = nn.DataParallel(
                     self.model,
-                    device_ids=self.arg.device,
-                    output_device=self.output_device)
-                self.joint_teacher = nn.DataParallel(
-                    self.joint_teacher,
-                    device_ids=self.arg.device,
-                    output_device=self.output_device)
-                self.bone_teacher = nn.DataParallel(
-                    self.bone_teacher,
-                    device_ids=self.arg.device,
-                    output_device=self.output_device)
-                self.mm_teacher = nn.DataParallel(
-                    self.mm_teacher,
                     device_ids=self.arg.device,
                     output_device=self.output_device)
 
@@ -277,34 +260,15 @@ class Processor():
     def load_model(self):
         output_device = self.arg.device[0] if type(self.arg.device) is list else self.arg.device
         self.output_device = output_device
-        UniModel = import_class(self.arg.model)
-        MultiModel = import_class(self.arg.multi_model)
-        # shutil.copy2(inspect.getfile(UniModel), self.arg.work_dir)
-        # print(Model)
-        self.joint_teacher = UniModel(**self.arg.model_args)
-        self.joint_teacher.load_state_dict(torch.load(self.arg.teacher_model['joint_model_weights']))
-        self.joint_teacher.eval()
-        self.bone_teacher = UniModel(**self.arg.model_args)
-        self.bone_teacher.load_state_dict(torch.load(self.arg.teacher_model['bone_model_weights']))
-        self.bone_teacher.eval()
-        self.mm_teacher = MultiModel(**self.arg.model_args)
-        self.mm_teacher.load_state_dict(torch.load(self.arg.teacher_model['multi_model_weights']))
-        self.mm_teacher.eval()
-        if os.path.exists(self.soft_label_dir):
-            self.logit_labels = torch.load(self.soft_label_dir)
-        else:
-            self.logit_labels = None
-        self.student_modal = self.arg.teacher_model['student']
-
-        StuModel = import_class(self.arg.student_model)
-        shutil.copy2(inspect.getfile(StuModel), self.arg.work_dir)
-        self.model = StuModel(**self.arg.model_args)
-        # print(self.model)
+        Model = import_class(self.arg.model)
+        shutil.copy2(inspect.getfile(Model), self.arg.work_dir)
+        
+        self.model = Model(**self.arg.model_args)
+        
         self.loss = nn.CrossEntropyLoss().cuda(output_device)
-        self.distill_loss = nn.MSELoss(reduction='mean').cuda(output_device)
 
         if self.arg.weights:
-            self.global_step = int(arg.weights[:-3].split('-')[-1])
+            # self.global_step = int(arg.weights[:-3].split('-')[-1])
             self.print_log('Load weights from {}.'.format(self.arg.weights))
             if '.pkl' in self.arg.weights:
                 with open(self.arg.weights, 'r') as f:
@@ -367,8 +331,7 @@ class Processor():
                 lr = self.arg.base_lr * (epoch + 1) / self.arg.warm_up_epoch
                 print('learning rate:',lr,self.arg.base_lr)
             else:
-                # lr = self.arg.base_lr * (
-                        # self.arg.lr_decay_rate ** np.sum(epoch >= np.array(self.arg.step)))
+                
                 lr = self.arg.base_lr * (0.1 ** np.sum(epoch >= np.array(self.arg.step)))
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
@@ -398,29 +361,6 @@ class Processor():
         self.record_time()
         return split_time
 
-    def extract(self, epoch, prefix='ntu120'):
-        self.model.train()
-        self.print_log('{} is not exisit, extract soft labels first'.format(self.soft_label_dir))
-        loader = self.data_loader['train']
-        process = tqdm(loader, ncols=40)
-        self.logit_labels = {}
-        with torch.no_grad():
-            for batch_idx, (data, label, index) in enumerate(process):
-                data = data.float().cuda(self.output_device)
-                label = label.long().cuda(self.output_device)
-                joint_data = data[:, :3, ...]
-                bone_data = data[:, 3:, ...]
-                jt_output = self.joint_teacher(joint_data)
-                bt_output = self.bone_teacher(bone_data)
-                mm_output = self.mm_teacher(data)
-                teacher_output = 0.3*(jt_output + bt_output + mm_output)
-                for i, ind in enumerate(index):
-                    ind = int(ind.cpu().numpy())
-                    if ind not in self.logit_labels.keys():
-                        self.logit_labels[ind] = teacher_output[i].clone().detach().cpu()
-        self.print_log('save extracted soft labels to >>> {}'.format(self.soft_label_dir))
-        torch.save(self.logit_labels, self.soft_label_dir)
-
     def train(self, epoch, save_model=False):
         self.model.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
@@ -428,28 +368,11 @@ class Processor():
         self.adjust_learning_rate(epoch)
 
         loss_value = []
-        inter_loss_value = []
         acc_value = []
         self.train_writer.add_scalar('epoch', epoch, self.global_step)
         self.record_time()
         timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
         process = tqdm(loader, ncols=40)
-        # if epoch == 0:
-        #     self.print_log('This is first training epoch. Aggregating teacher predictions first.')
-        #     with torch.no_grad():
-        #         for batch_idx, (data, label, index) in enumerate(process):
-        #             data = data.float().cuda(self.output_device)
-        #             label = label.long().cuda(self.output_device)
-        #             joint_data = data[:, :3, ...]
-        #             bone_data = data[:, 3:, ...]
-        #             jt_output = self.joint_teacher(joint_data)
-        #             bt_output = self.bone_teacher(bone_data)
-        #             mm_output = self.mm_teacher(data)
-        #             teacher_output = 0.3*(jt_output + bt_output + mm_output)
-        #             for i, ind in enumerate(index):
-        #                 ind = int(ind.cpu().numpy())
-        #                 if ind not in self.logit_labels.keys():
-        #                     self.logit_labels[ind] = teacher_output[i].clone().detach().cpu()
 
         for batch_idx, (data, label, index) in enumerate(process):
             self.global_step += 1
@@ -458,65 +381,33 @@ class Processor():
                 label = label.long().cuda(self.output_device)
                 joint_data = data[:, :3, ...]
                 bone_data = data[:, 3:, ...]
-                # if epoch == 0:
-                #     jt_output = self.joint_teacher(joint_data)
-                #     bt_output = self.bone_teacher(bone_data)
-                #     mm_output = self.mm_teacher(data)
-                #     teacher_output = 0.3*(jt_output + bt_output + mm_output)
-                #     for i, ind in enumerate(index):
-                #         ind = int(ind.cpu().numpy())
-                #         if ind not in self.logit_labels.keys():
-                #             self.logit_labels[ind] = teacher_output[i].clone().detach().cpu()
-                # else:
-                teacher_output = []
-                for i, ind in enumerate(index):
-                    ind = int(ind.cpu().numpy())
-                    if ind in self.logit_labels.keys():
-                        teacher_output.append(self.logit_labels[ind].reshape(1, -1))
-                    else:
-                        jt_output = self.joint_teacher(joint_data[i][None])
-                        bt_output = self.bone_teacher(bone_data[i][None])
-                        mm_output = self.mm_teacher(data[i][None])
-                        extract_output = 0.3*(jt_output + bt_output + mm_output)
-                        self.logit_labels[ind] = extract_output.clone().detach().cpu()
-                        teacher_output.append(self.logit_labels[ind].reshape(1, -1))
-                teacher_output = torch.cat(teacher_output, dim=0)
-                teacher_output = teacher_output.float().cuda(self.output_device)
-                
             timer['dataloader'] += self.split_time()
 
             # forward
-            if self.student_modal=='joint':
+            if self.target_form=='joint':
                 output = self.model(joint_data)
-            elif self.student_modal=='bone':
+            elif self.target_form=='bone':
                 output = self.model(bone_data)
             else:
                 output = self.model(data)
+            output = output['logits']
             loss = 0
-            distill_loss = 0
             if isinstance(output, list):
                 for o in output:
                     if loss == 0:
                         loss = self.loss(o, label)
-                        distill_loss = 0.5*(self.distill_loss(o, jt_output) + self.distill_loss(o, bt_output))
-
                     else:
-                        distill_loss += 0.5*(self.distill_loss(o, jt_output) + self.distill_loss(o, bt_output))
-                        loss += distill_loss
+                        loss += 0.5 * self.loss(o, label)
                 # loss /= len(output)
                 output = output[0]
             else:
                 loss = self.loss(output, label)
-                # distill_loss = 0.5*(self.distill_loss(output, jt_output) + self.distill_loss(output, bt_output))
-                distill_loss = self.distill_loss(output, teacher_output)
-                loss += distill_loss
             # backward
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 
             loss_value.append(loss.data.item())
-            inter_loss_value.append(distill_loss.data.item())
             timer['model'] += self.split_time()
 
             value, predict_label = torch.max(output.data, 1)
@@ -536,7 +427,7 @@ class Processor():
             for k, v in timer.items()
         }
         self.print_log(
-            '\tMean training loss: {:.4f}. Mean logits distill loss: {:.4f}. Mean training acc: {:.2f}%.'.format(np.mean(loss_value), np.mean(inter_loss_value), np.mean(acc_value)*100))
+            '\tMean training loss: {:.4f}.  Mean training acc: {:.2f}%.'.format(np.mean(loss_value), np.mean(acc_value)*100))
         self.print_log('\tTime consumption: [Data]{dataloader}, [Network]{model}'.format(**proportion))
 
         if save_model:
@@ -566,17 +457,13 @@ class Processor():
                     label = label.long().cuda(self.output_device)
                     joint_data = data[:, :3, ...]
                     bone_data = data[:, 3:, ...]
-                    
-                    # jt_output = self.joint_teacher(joint_data)
-                    # bt_output = self.bone_teacher(bone_data)
-                    # mm_output = self.mm_teacher(data)
-                    # output = jt_output + bt_output + mm_output
-                    if self.student_modal=='joint':
+                    if self.target_form=='joint':
                         output = self.model(joint_data)
-                    elif self.student_modal=='bone':
+                    elif self.target_form=='bone':
                         output = self.model(bone_data)
                     else:
                         output = self.model(data)
+                    output = output['logits']
                     if isinstance(output, list):
                         output = output[0]
                     loss = self.loss(output, label)
@@ -584,7 +471,6 @@ class Processor():
                     loss_value.append(loss.data.item())
 
                     _, predict_label = torch.max(output.data, 1)
-                    # acc = torch.mean((predict_label == label.data).float())
                     pred_list.append(predict_label.data.cpu().numpy())
                     step += 1
 
@@ -598,8 +484,7 @@ class Processor():
                             f_w.write(str(index[i]) + ',' + str(x) + ',' + str(true[i]) + '\n')
             score = np.concatenate(score_frag)
             loss = np.mean(loss_value)
-            if 'ucla' in self.arg.feeder:
-                self.data_loader[ln].dataset.sample_name = np.arange(len(score))
+            
             accuracy = self.data_loader[ln].dataset.top_k(score, 1)
             if accuracy > self.best_acc:
                 self.best_acc = accuracy
@@ -645,14 +530,10 @@ class Processor():
             for epoch in range(self.arg.start_epoch, self.arg.num_epoch):
                 save_model = (((epoch + 1) % self.arg.save_interval == 0) or (
                         epoch + 1 == self.arg.num_epoch)) and (epoch+1) > self.arg.save_epoch
-                if self.logit_labels is None:
-                    self.extract(epoch)
 
                 self.train(epoch, save_model=save_model)
 
                 self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
-                
-                
 
             # test the best model
             weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]

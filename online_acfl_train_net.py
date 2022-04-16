@@ -117,7 +117,7 @@ def get_parser():
     parser.add_argument(
         '--num-worker',
         type=int,
-        default=32,
+        default=16,
         help='the number of worker for data loader')
     parser.add_argument(
         '--train-feeder-args',
@@ -131,7 +131,9 @@ def get_parser():
         help='the arguments of data loader for test')
 
     # model
-    parser.add_argument('--model', default=None, help='the model will be used')
+    parser.add_argument('--cfml_loss', default=None, help='the model will be used')
+    parser.add_argument('--source_sform_model', default=None, help='the model will be used')
+    parser.add_argument('--source_mform_model', default=None, help='the model will be used')
     parser.add_argument(
         '--model-args',
         action=DictAction,
@@ -215,6 +217,7 @@ class Processor():
             else:
                 self.train_writer = self.val_writer = SummaryWriter(os.path.join(arg.model_saved_name, 'test'), 'test')
         self.global_step = 0
+        
         # pdb.set_trace()
         self.load_model()
 
@@ -226,13 +229,33 @@ class Processor():
         self.lr = self.arg.base_lr
         self.best_acc = 0
         self.best_acc_epoch = 0
+        self.best_joint_acc = 0
+        self.best_joint_acc_epoch = 0
+        self.best_bone_acc = 0
+        self.best_bone_acc_epoch = 0
+        self.best_hybrid_acc = 0
+        self.best_hybrid_acc_epoch = 0
 
-        self.model = self.model.cuda(self.output_device)
+        
+        self.joint_model = self.joint_model.cuda(self.output_device)
+        self.bone_model = self.bone_model.cuda(self.output_device)
+        self.hybrid_model = self.hybrid_model.cuda(self.output_device)
+        self.j_CFMLLoss = self.j_CFMLLoss.cuda(self.output_device)
+        self.b_CFMLLoss = self.b_CFMLLoss.cuda(self.output_device)
+        self.h_CFMLLoss = self.h_CFMLLoss.cuda(self.output_device)
         if type(self.arg.device) is list:
 
             if len(self.arg.device) > 1:
-                self.model = nn.DataParallel(
-                    self.model,
+                self.joint_model = nn.DataParallel(
+                    self.joint_model,
+                    device_ids=self.arg.device,
+                    output_device=self.output_device)
+                self.bone_model = nn.DataParallel(
+                    self.bone_model,
+                    device_ids=self.arg.device,
+                    output_device=self.output_device)
+                self.hybrid_model = nn.DataParallel(
+                    self.hybrid_model,
                     device_ids=self.arg.device,
                     output_device=self.output_device)
 
@@ -258,48 +281,42 @@ class Processor():
     def load_model(self):
         output_device = self.arg.device[0] if type(self.arg.device) is list else self.arg.device
         self.output_device = output_device
-        Model = import_class(self.arg.model)
-        shutil.copy2(inspect.getfile(Model), self.arg.work_dir)
-        # print(Model)
-        self.model = Model(**self.arg.model_args)
-        # print(self.model)
+        UniModel = import_class(self.arg.source_sform_model)
+        MultiModel = import_class(self.arg.source_mform_model)
+        # shutil.copy2(inspect.getfile(UniModel), self.arg.work_dir)
+        self.joint_model = UniModel(**self.arg.model_args)
+        
+        self.bone_model = UniModel(**self.arg.model_args)
+        
+        self.hybrid_model = MultiModel(**self.arg.model_args)
+        
         self.loss = nn.CrossEntropyLoss().cuda(output_device)
+        loss_factory = import_class(self.arg.cfml_loss)
+        self.j_CFMLLoss = loss_factory(self.arg.model_args['base_channel']*4)
+        self.b_CFMLLoss = loss_factory(self.arg.model_args['base_channel']*4)
+        self.h_CFMLLoss = loss_factory(self.arg.model_args['base_channel']*4)
 
-        if self.arg.weights:
-            # self.global_step = int(arg.weights[:-3].split('-')[-1])
-            self.print_log('Load weights from {}.'.format(self.arg.weights))
-            if '.pkl' in self.arg.weights:
-                with open(self.arg.weights, 'r') as f:
-                    weights = pickle.load(f)
-            else:
-                weights = torch.load(self.arg.weights)
-
-            weights = OrderedDict([[k.split('module.')[-1], v.cuda(output_device)] for k, v in weights.items()])
-
-            keys = list(weights.keys())
-            for w in self.arg.ignore_weights:
-                for key in keys:
-                    if w in key:
-                        if weights.pop(key, None) is not None:
-                            self.print_log('Sucessfully Remove Weights: {}.'.format(key))
-                        else:
-                            self.print_log('Can Not Remove Weights: {}.'.format(key))
-
-            try:
-                self.model.load_state_dict(weights)
-            except:
-                state = self.model.state_dict()
-                diff = list(set(state.keys()).difference(set(weights.keys())))
-                print('Can not find these weights:')
-                for d in diff:
-                    print('  ' + d)
-                state.update(weights)
-                self.model.load_state_dict(state)
 
     def load_optimizer(self):
+
+        params = []
+
+        for p in self.joint_model.parameters():
+            params.append(p)
+        for p in self.bone_model.parameters():
+            params.append(p)
+        for p in self.hybrid_model.parameters():
+            params.append(p)
+
+        for p in self.j_CFMLLoss.parameters():
+            params.append(p)
+        for p in self.b_CFMLLoss.parameters():
+            params.append(p)
+        for p in self.h_CFMLLoss.parameters():
+            params.append(p)
         if self.arg.optimizer == 'SGD':
             self.optimizer = optim.SGD(
-                self.model.parameters(),
+                params,
                 lr=self.arg.base_lr,
                 momentum=0.9,
                 nesterov=self.arg.nesterov,
@@ -329,8 +346,6 @@ class Processor():
                 lr = self.arg.base_lr * (epoch + 1) / self.arg.warm_up_epoch
                 print('learning rate:',lr,self.arg.base_lr)
             else:
-                # lr = self.arg.base_lr * (
-                        # self.arg.lr_decay_rate ** np.sum(epoch >= np.array(self.arg.step)))
                 lr = self.arg.base_lr * (0.1 ** np.sum(epoch >= np.array(self.arg.step)))
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
@@ -361,13 +376,40 @@ class Processor():
         return split_time
 
     def train(self, epoch, save_model=False):
-        self.model.train()
+        self.joint_model.train()
+        self.bone_model.train()
+        self.hybrid_model.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
         loader = self.data_loader['train']
         self.adjust_learning_rate(epoch)
 
         loss_value = []
+        d_loss_value = []
+        d_feat_loss_value = []
+        d_logit_loss_value = []
         acc_value = []
+
+        loss_value_joint = []
+        d_loss_value_joint = []
+        d_feat_loss_value_joint = []
+        d_logit_loss_value_joint = []
+        acc_value_joint = []
+
+        loss_value_bone = []
+        d_loss_value_bone = []
+        d_feat_loss_value_bone = []
+        d_logit_loss_value_bone = []
+        acc_value_bone = []
+
+        loss_value_hybrid = []
+        d_loss_value_hybrid = []
+        d_feat_loss_value_hybrid = []
+        d_logit_loss_value_hybrid = []
+        acc_value_hybrid = []
+        j_factor = 0.
+        b_factor = 0.
+        h_factor = 0.
+
         self.train_writer.add_scalar('epoch', epoch, self.global_step)
         self.record_time()
         timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
@@ -378,29 +420,101 @@ class Processor():
             with torch.no_grad():
                 data = data.float().cuda(self.output_device)
                 label = label.long().cuda(self.output_device)
+                joint_data = data[:, :3, ...]
+                bone_data = data[:, 3:, ...]
             timer['dataloader'] += self.split_time()
+            
+            jt_output = self.joint_model(joint_data)
+            bt_output = self.bone_model(bone_data)
+            mm_output = self.hybrid_model(data)
 
-            # forward
-            output = self.model(data)
+            with torch.no_grad():
+                j_logits, b_logits, m_logits = jt_output['logits'].clone(), bt_output['logits'].clone(), mm_output['logits'].clone()
+                j_value, j_predict_label = torch.max(j_logits.data, 1)
+                j_factor = torch.mean((j_predict_label == label.data).float())
+                b_value, b_predict_label = torch.max(b_logits.data, 1)
+                b_factor = torch.mean((b_predict_label == label.data).float())
+                m_value, m_predict_label = torch.max(m_logits.data, 1)
+                h_factor = torch.mean((m_predict_label == label.data).float())
+                beta = torch.cat([j_factor.reshape(1, 1, 1), b_factor.reshape(1, 1, 1), h_factor.reshape(1, 1, 1)], dim=2)
+                if np.random.uniform(0,1)>0.5:
+                    j_old_value = j_logits.data[torch.arange(0, label.size(0)).long(), label.long()]
+                    j_logits[torch.arange(0, label.size(0)).long(), label.long()] = 1.* j_value
+                    j_logits[torch.arange(0, label.size(0)).long(), j_predict_label.long()] = 1.* j_old_value
+                if np.random.uniform(0,1)>0.5:
+                    b_old_value = b_logits.data[torch.arange(0, label.size(0)).long(), label.long()]
+                    b_logits[torch.arange(0, label.size(0)).long(), label.long()] = 1.* b_value
+                    b_logits[torch.arange(0, label.size(0)).long(), b_predict_label.long()] = 1.* b_old_value
+                if np.random.uniform(0,1)>0.5:
+                    m_old_value = m_logits.data[torch.arange(0, label.size(0)).long(), label.long()]
+                    m_logits[torch.arange(0, label.size(0)).long(), label.long()] = 1.* m_value
+                    m_logits[torch.arange(0, label.size(0)).long(), m_predict_label.long()] = 1.* m_old_value
+
+                logits_t  = torch.cat([j_logits.unsqueeze(0), b_logits.unsqueeze(0), m_logits.unsqueeze(0)], dim=0)
+                feature_t = torch.cat([jt_output['feature'].unsqueeze(0), bt_output['feature'].unsqueeze(0), mm_output['feature'].unsqueeze(0)], dim=0)
+                
+
             loss = 0
-            if isinstance(output, list):
-                for o in output:
-                    if loss == 0:
-                        loss = self.loss(o, label)
-                    else:
-                        loss += 0.5 * self.loss(o, label)
-                # loss /= len(output)
-                output = output[0]
-            else:
-                loss = self.loss(output, label)
+            
+            j_loss = self.loss(jt_output['logits'], label)
+            b_loss = self.loss(bt_output['logits'], label)
+            mm_loss = self.loss(mm_output['logits'], label)
+            cls_loss = j_loss + b_loss + mm_loss
+            
+            j_cfml_loss = self.j_CFMLLoss(feature_t, jt_output['feature'].unsqueeze(0), logits_t, jt_output['logits'].unsqueeze(0), beta)
+            b_cfml_loss= self.b_CFMLLoss(feature_t, bt_output['feature'].unsqueeze(0), logits_t, bt_output['logits'].unsqueeze(0), beta)
+            h_cfml_loss = self.h_CFMLLoss(feature_t, mm_output['feature'].unsqueeze(0), logits_t, mm_output['logits'].unsqueeze(0), beta)
+            cfml_loss = j_factor * j_cfml_loss['d_loss'].mean() + b_factor * b_cfml_loss['d_loss'].mean() + h_factor * h_cfml_loss['d_loss'].mean()
+
+            loss = cls_loss + cfml_loss
             # backward
             self.optimizer.zero_grad()
             loss.backward()
-            self.optimizer.step()
+            self.optimizer.step()         
+
+            # overall 
+            loss = (j_loss + b_loss + mm_loss) * 0.3
+            cfml_loss = (j_cfml_loss['d_loss'].mean() + b_cfml_loss['d_loss'].mean() + h_cfml_loss['d_loss'].mean()) * 0.3
+            d_feat_loss = (j_cfml_loss['d_feat_loss'].mean() + b_cfml_loss['d_feat_loss'].mean() + h_cfml_loss['d_feat_loss'].mean()) * 0.3
+            d_logit_loss = (j_cfml_loss['d_logit_loss'].mean() + b_cfml_loss['d_logit_loss'].mean() + h_cfml_loss['d_logit_loss'].mean()) * 0.3
+            output = jt_output['logits'] + bt_output['logits'] + mm_output['logits']
+
 
             loss_value.append(loss.data.item())
-            timer['model'] += self.split_time()
+            d_loss_value.append(cfml_loss.data.item())
+            d_feat_loss_value.append(d_feat_loss.data.item())
+            d_logit_loss_value.append(d_logit_loss.data.item())
 
+            loss_value_joint.append(j_loss.data.item())
+            d_loss_value_joint.append(j_cfml_loss['d_loss'].mean().data.item())
+            d_feat_loss_value_joint.append(j_cfml_loss['d_logit_loss'].mean() .data.item())
+            d_logit_loss_value_joint.append(j_cfml_loss['d_logit_loss'].mean().data.item())
+
+            loss_value_bone.append(b_loss.data.item())
+            d_loss_value_bone.append(b_cfml_loss['d_loss'].mean().data.item())
+            d_feat_loss_value_bone.append(b_cfml_loss['d_logit_loss'].mean() .data.item())
+            d_logit_loss_value_bone.append(b_cfml_loss['d_logit_loss'].mean().data.item())
+
+            loss_value_hybrid.append(mm_loss.data.item())
+            d_loss_value_hybrid.append(h_cfml_loss['d_loss'].mean().data.item())
+            d_feat_loss_value_hybrid.append(h_cfml_loss['d_logit_loss'].mean() .data.item())
+            d_logit_loss_value_hybrid.append(h_cfml_loss['d_logit_loss'].mean().data.item())
+
+            timer['model'] += self.split_time()
+            
+            value, predict_label = torch.max(jt_output['logits'].data, 1)
+            acc = torch.mean((predict_label == label.data).float())
+            acc_value_joint.append(acc.data.item())
+            
+            
+            value, predict_label = torch.max(bt_output['logits'].data, 1)
+            acc = torch.mean((predict_label == label.data).float())
+            acc_value_bone.append(acc.data.item())
+                        
+            value, predict_label = torch.max(mm_output['logits'].data, 1)
+            acc = torch.mean((predict_label == label.data).float())
+            acc_value_hybrid.append(acc.data.item())
+            
             value, predict_label = torch.max(output.data, 1)
             acc = torch.mean((predict_label == label.data).float())
             acc_value.append(acc.data.item())
@@ -411,34 +525,59 @@ class Processor():
             self.lr = self.optimizer.param_groups[0]['lr']
             self.train_writer.add_scalar('lr', self.lr, self.global_step)
             timer['statistics'] += self.split_time()
-
+        
         # statistics of time consumption and loss
         proportion = {
             k: '{:02d}%'.format(int(round(v * 100 / sum(timer.values()))))
             for k, v in timer.items()
         }
+        log_msg = '\tOverall: Mean training loss: {:.4f}. Mean distill loss: {:.4f} d_feat {:.4f} d_logit {:.4f}. Mean training acc: {:.2f}%.'
+        log_msg += '\n\tJoint model: Mean training loss: {:.4f}. Mean distill loss: {:.4f} d_feat {:.4f} d_logit {:.4f}. Mean training acc: {:.2f}%.'
+        log_msg += '\n\tBone model: Mean training loss: {:.4f}. Mean distill loss: {:.4f} d_feat {:.4f} d_logit {:.4f}. Mean training acc: {:.2f}%.'
+        log_msg += '\n\tHybrid model: Mean training loss: {:.4f}. Mean distill loss: {:.4f} d_feat {:.4f} d_logit {:.4f}. Mean training acc: {:.2f}%.'
         self.print_log(
-            '\tMean training loss: {:.4f}.  Mean training acc: {:.2f}%.'.format(np.mean(loss_value), np.mean(acc_value)*100))
+            log_msg.format(np.mean(loss_value), np.mean(d_loss_value), np.mean(d_feat_loss_value), np.mean(d_logit_loss_value), np.mean(acc_value)*100,
+            np.mean(loss_value_joint), np.mean(d_loss_value_joint), np.mean(d_feat_loss_value_joint), np.mean(d_logit_loss_value_joint), np.mean(acc_value_joint)*100,
+            np.mean(loss_value_bone), np.mean(d_loss_value_bone), np.mean(d_feat_loss_value_bone), np.mean(d_logit_loss_value_bone), np.mean(acc_value_bone)*100,
+            np.mean(loss_value_hybrid), np.mean(d_loss_value_hybrid), np.mean(d_feat_loss_value_hybrid), np.mean(d_logit_loss_value_hybrid), np.mean(acc_value_hybrid)*100))
         self.print_log('\tTime consumption: [Data]{dataloader}, [Network]{model}'.format(**proportion))
 
         if save_model:
-            state_dict = self.model.state_dict()
+            state_dict = self.joint_model.state_dict()
             weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
+            torch.save(weights, self.arg.model_saved_name + '-JGCN-' + str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
 
-            torch.save(weights, self.arg.model_saved_name + '-' + str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
+            state_dict = self.bone_model.state_dict()
+            weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
+            torch.save(weights, self.arg.model_saved_name + '-BGCN-' + str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
+
+            state_dict = self.hybrid_model.state_dict()
+            weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
+            torch.save(weights, self.arg.model_saved_name + '-BJGCN-' + str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
 
     def eval(self, epoch, save_score=False, loader_name=['test'], wrong_file=None, result_file=None):
         if wrong_file is not None:
             f_w = open(wrong_file, 'w')
         if result_file is not None:
             f_r = open(result_file, 'w')
-        self.model.eval()
+        self.joint_model.eval()
+        self.bone_model.eval()
+        self.hybrid_model.eval()
         self.print_log('Eval epoch: {}'.format(epoch + 1))
         for ln in loader_name:
             loss_value = []
             score_frag = []
             label_list = []
             pred_list = []
+
+            score_frag_joint = []
+            pred_list_joint = []
+
+            score_frag_bone = []
+            pred_list_bone = []
+
+            score_frag_hybrid = []
+            pred_list_hybrid = []
             step = 0
             process = tqdm(self.data_loader[ln], ncols=40)
             for batch_idx, (data, label, index) in enumerate(process):
@@ -446,15 +585,34 @@ class Processor():
                 with torch.no_grad():
                     data = data.float().cuda(self.output_device)
                     label = label.long().cuda(self.output_device)
-                    output = self.model(data)
-                    if isinstance(output, list):
-                        output = output[0]
+                    joint_data = data[:, :3, ...]
+                    bone_data = data[:, 3:, ...]
+                    
+                    jt_output = self.joint_model(joint_data)['logits']
+                    bt_output = self.bone_model(bone_data)['logits']
+                    mm_output = self.hybrid_model(data)['logits']
+                    output = jt_output + bt_output + mm_output
+                    
                     loss = self.loss(output, label)
                     score_frag.append(output.data.cpu().numpy())
                     loss_value.append(loss.data.item())
 
                     _, predict_label = torch.max(output.data, 1)
+                    # acc = torch.mean((predict_label == label.data).float())
                     pred_list.append(predict_label.data.cpu().numpy())
+
+                    score_frag_joint.append(jt_output.data.cpu().numpy())
+                    _, predict_label = torch.max(jt_output.data, 1)
+                    pred_list_joint.append(predict_label.data.cpu().numpy())
+
+                    score_frag_bone.append(bt_output.data.cpu().numpy())
+                    _, predict_label = torch.max(bt_output.data, 1)
+                    pred_list_bone.append(predict_label.data.cpu().numpy())
+
+                    score_frag_hybrid.append(mm_output.data.cpu().numpy())
+                    _, predict_label = torch.max(mm_output.data, 1)
+                    pred_list_hybrid.append(predict_label.data.cpu().numpy())
+
                     step += 1
 
                 if wrong_file is not None or result_file is not None:
@@ -466,15 +624,33 @@ class Processor():
                         if x != true[i] and wrong_file is not None:
                             f_w.write(str(index[i]) + ',' + str(x) + ',' + str(true[i]) + '\n')
             score = np.concatenate(score_frag)
+            score_joint = np.concatenate(score_frag_joint)
+            score_bone = np.concatenate(score_frag_bone)
+            score_hybrid = np.concatenate(score_frag_hybrid)
             loss = np.mean(loss_value)
             if 'ucla' in self.arg.feeder:
                 self.data_loader[ln].dataset.sample_name = np.arange(len(score))
             accuracy = self.data_loader[ln].dataset.top_k(score, 1)
+            accuracy_joint = self.data_loader[ln].dataset.top_k(score_joint, 1)
+            accuracy_bone = self.data_loader[ln].dataset.top_k(score_bone, 1)
+            accuracy_hybrid = self.data_loader[ln].dataset.top_k(score_hybrid, 1)
             if accuracy > self.best_acc:
                 self.best_acc = accuracy
                 self.best_acc_epoch = epoch + 1
 
-            print('Accuracy: ', accuracy, ' model: ', self.arg.model_saved_name)
+            if accuracy_joint > self.best_joint_acc:
+                self.best_joint_acc = accuracy_joint
+                self.best_joint_acc_epoch = epoch + 1
+            
+            if accuracy_bone > self.best_bone_acc:
+                self.best_bone_acc = accuracy_bone
+                self.best_bone_acc_epoch = epoch + 1
+
+            if accuracy_hybrid > self.best_hybrid_acc:
+                self.best_hybrid_acc = accuracy_hybrid
+                self.best_hybrid_acc_epoch = epoch + 1
+
+            print('Accuracy: ', accuracy, 'Joint Model Accuracy: ', accuracy_joint, 'Bone Model Accuracy: ', accuracy_bone, 'Hybrid Model Accuracy: ', accuracy_hybrid, ' model: ', self.arg.model_saved_name)
             if self.arg.phase == 'train':
                 self.val_writer.add_scalar('loss', loss, self.global_step)
                 self.val_writer.add_scalar('acc', accuracy, self.global_step)
@@ -484,8 +660,9 @@ class Processor():
             self.print_log('\tMean {} loss of {} batches: {}.'.format(
                 ln, len(self.data_loader[ln]), np.mean(loss_value)))
             for k in self.arg.show_topk:
-                self.print_log('\tTop{}: {:.2f}%'.format(
-                    k, 100 * self.data_loader[ln].dataset.top_k(score, k)))
+                self.print_log('\t Top{}: Mean {:.2f}%, Joint Model: {:.2f}%, Bone Model: {:.2f}%, Hybrid Model: {:.2f}%'.format(
+                    k, 100 * self.data_loader[ln].dataset.top_k(score, k), 100 * self.data_loader[ln].dataset.top_k(score_joint, k), 
+                    100 * self.data_loader[ln].dataset.top_k(score_bone, k), 100 * self.data_loader[ln].dataset.top_k(score_hybrid, k)))
 
             if save_score:
                 with open('{}/epoch{}_{}_score.pkl'.format(
@@ -510,22 +687,36 @@ class Processor():
             self.global_step = self.arg.start_epoch * len(self.data_loader['train']) / self.arg.batch_size
             def count_parameters(model):
                 return sum(p.numel() for p in model.parameters() if p.requires_grad)
-            self.print_log(f'# Parameters: {count_parameters(self.model)}')
+            self.print_log(f'# Parameters for one input: {count_parameters(self.joint_model)}')
+            self.print_log(f'# Parameters for hybrid input: {count_parameters(self.hybrid_model)}')
             for epoch in range(self.arg.start_epoch, self.arg.num_epoch):
                 save_model = (((epoch + 1) % self.arg.save_interval == 0) or (
                         epoch + 1 == self.arg.num_epoch)) and (epoch+1) > self.arg.save_epoch
-
                 self.train(epoch, save_model=save_model)
 
                 self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
 
             # test the best model
-            weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]
+            weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-JGCN-'+str(self.best_acc_epoch)+'*'))[0]
             weights = torch.load(weights_path)
             if type(self.arg.device) is list:
                 if len(self.arg.device) > 1:
                     weights = OrderedDict([['module.'+k, v.cuda(self.output_device)] for k, v in weights.items()])
-            self.model.load_state_dict(weights)
+            self.joint_model.load_state_dict(weights)
+
+            weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-BGCN-'+str(self.best_acc_epoch)+'*'))[0]
+            weights = torch.load(weights_path)
+            if type(self.arg.device) is list:
+                if len(self.arg.device) > 1:
+                    weights = OrderedDict([['module.'+k, v.cuda(self.output_device)] for k, v in weights.items()])
+            self.bone_model.load_state_dict(weights)
+
+            weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-HybridGCN-'+str(self.best_acc_epoch)+'*'))[0]
+            weights = torch.load(weights_path)
+            if type(self.arg.device) is list:
+                if len(self.arg.device) > 1:
+                    weights = OrderedDict([['module.'+k, v.cuda(self.output_device)] for k, v in weights.items()])
+            self.hybrid_model.load_state_dict(weights)
 
             wf = weights_path.replace('.pt', '_wrong.txt')
             rf = weights_path.replace('.pt', '_right.txt')
@@ -534,11 +725,12 @@ class Processor():
             self.arg.print_log = True
 
 
-            num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-            self.print_log(f'Best accuracy: {self.best_acc}')
-            self.print_log(f'Epoch number: {self.best_acc_epoch}')
+            num_params_single_input = sum(p.numel() for p in self.joint_model.parameters() if p.requires_grad)
+            num_params_hybrid_input = sum(p.numel() for p in self.hybrid_model.parameters() if p.requires_grad)
+            self.print_log(f'Best accuracy: {self.best_acc}, {self.best_joint_acc}, {self.best_bone_acc}, {self.best_hybrid_acc}')
+            self.print_log(f'Epoch number: {self.best_acc_epoch}, {self.best_joint_acc_epoch}, {self.best_bone_acc_epoch}, {self.best_hybrid_acc_epoch}')
             self.print_log(f'Model name: {self.arg.work_dir}')
-            self.print_log(f'Model total number of params: {num_params}')
+            self.print_log(f'Model total number of params: {num_params_single_input}, {num_params_hybrid_input}')
             self.print_log(f'Weight decay: {self.arg.weight_decay}')
             self.print_log(f'Base LR: {self.arg.base_lr}')
             self.print_log(f'Batch Size: {self.arg.batch_size}')
