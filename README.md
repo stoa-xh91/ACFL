@@ -10,7 +10,7 @@ We empirically demonstrate the effectiveness of our method through the superior 
 
 ## Main Results
 
-### Results on NTU RGB-D 120, NTU RGB-D 60, UAV
+### Adopting Shift-GCN as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |Shift-GCN        |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
@@ -19,10 +19,18 @@ We empirically demonstrate the effectiveness of our method through the superior 
 |Shift-GCN w ACFL |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |Shift-GCN        |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |Shift-GCN w ACFL |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+
+### Adopting MS-G3D as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
+| Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
+|:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |MS-G3D           |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |MS-G3D w ACFL    |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |MS-G3D           |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |MS-G3D w ACFL    |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+
+### Adopting CTR-GCN as the baseline model, evaluation results on NTU RGB-D 120, NTU RGB-D 60, UAV.
+| Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
+|:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |CTR-GCN          |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |CTR-GCN  w ACFL  |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |CTR-GCN          |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
