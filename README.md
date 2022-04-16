@@ -14,7 +14,7 @@ We empirically demonstrate the effectiveness of our method through the superior 
 | Settings        | Input Form | NTU-RGB-D 120 X-Sub |  NTU-RGB-D 120 X-Set |  NTU-RGB-D 60 X-Sub |  NTU-RGB-D 60 X-View | UAV X-Sub |
 |:---------------:|:----------:|:-------------------:|:--------------------:|:-------------------:|:--------------------:|:---------:|
 |Shift-GCN        |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
-|Shift-GCN w ACFL |   Joint    |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
+|Shift-GCN w ACFL |   Joint    |         **85.1**    |         84.3         |         88.0        |          93.6        |   41.3    |
 |Shift-GCN        |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |Shift-GCN w ACFL |   Bone     |         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
 |Shift-GCN        |Joint & Bone|         82.8        |         84.3         |         88.0        |          93.6        |   41.3    |
