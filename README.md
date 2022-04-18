@@ -128,7 +128,7 @@ python online_acfl_train_net.py --config config/nturgbd120-cross-subject/ACFL/on
 
 ```
 # Example: training CTR-GCN via Off-line ACFL on NTU RGB+D 120 cross subject with GPU 0 1 2 3
-python offline_acfl_train_net.py --config config/nturgbd120-cross-subject/ACFL/offline_acfl_shiftgcn.yaml --work-dir work_dir/ntu120/csub/offline_acfl_joint_ctrgcn --device 0 1 2 3
+python offline_acfl_train_net.py --config config/nturgbd120-cross-subject/ACFL/offline_acfl_ctrgcn.yaml --work-dir work_dir/ntu120/csub/offline_acfl_joint_ctrgcn --device 0 1 2 3
 ```
 
 ### Testing
