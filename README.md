@@ -1,4 +1,4 @@
-# ACFL
+# ACFL: Adaptive Cross-Form Learning for Skeleton based Action Recognition
 This repo is the official implementation for ACFL, which is based on [CTR-GCN](https://github.com/Uason-Chen/CTR-GCN) repo.
 
 ## Introduction
