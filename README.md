@@ -140,3 +140,25 @@ python offline_acfl_train_net.py --config config/nturgbd120-cross-subject/ACFL/o
 python standard_train_net.py --config config/nturgbd120-cross-subject/baselines/baseline_ctrgcn.yaml --work-dir work_dir/ntu120/csub/offline_acfl_joint_ctrgcn --phase test --weights work_dir/ntu120/csub/offline_acfl_joint_ctrgcn/xxx.pt --device 0
 ```
 
+## Acknowledge
+This repo is mainly based on [CTR-GCN](https://github.com/Uason-Chen/CTR-GCN). 
+
+Thanks to the orginal authors for their contribution.
+
+## Citation
+
+```
+@inproceedings{WangACFL,
+  title = {Skeleton-based Action Recognition via Adaptive Cross-Form Learning},
+  author={Xuanhan Wang and Yan Dai and Lianli Gao and Jingkuan Song},
+  booktitle = {ACM MM},
+  year={2022}
+}
+
+@article{wangacflsuppl,
+  author = {Wang, Xuanhan and Dai, Yan and Gao, Lianli and Song, Jingkuan},
+  title = {Skeleton-based Action Recognition via Adaptive Cross-Form Learning},
+  journal={arXiv preprint arXiv:2206.15085},
+  year = {2022}
+}
+```
