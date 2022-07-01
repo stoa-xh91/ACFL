@@ -57,11 +57,9 @@ Put downloaded data into the following directory structure:
 
 ```
 - data/
-  - NW-UCLA/
-    - all_sqe
-      ... # raw data of NW-UCLA
   - ntu/
   - ntu120/
+  - UAV/
   - nturgbd_raw/
     - nturgb+d_skeletons/     # from `nturgbd_skeletons_s001_to_s017.zip`
       ...
