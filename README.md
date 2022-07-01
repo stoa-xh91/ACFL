@@ -1,5 +1,5 @@
 # ACFL: Adaptive Cross-Form Learning for Skeleton based Action Recognition
-This repo is the official implementation for ACFL, which is based on [CTR-GCN](https://github.com/Uason-Chen/CTR-GCN) repo.
+This repo is the official implementation for [ACFL](https://arxiv.org/abs/2206.15085), which is based on [CTR-GCN](https://github.com/Uason-Chen/CTR-GCN) repo.
 
 ## Introduction
 In this work, we are interested in the skeleton based action recognition with a focus on learning paradigm. Most existing methods tend to improve GCNs by leveraging multi-form skeletons due to their complementary cues. However, these methods (either adapting structure of GCNs or model ensemble) require the co-existence of all forms of skeletons during both training and inference stages, while a typical situation in real life is the existence of only partial forms for inference. 
